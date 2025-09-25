@@ -1,0 +1,856 @@
+---
+title: "Intelligent Data Analysis and Visualization"
+author: "Tatiana"
+date: "2025-03-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+
+# TO GET THIS TO RUN, SHOULD WORK WITHOUT SETTING A WORKING DIRECTORY, BUT WAS NOT WORKING FOR ME
+# IN CASE OF ISSUES PLEASE USE setwd(" ")
+
+training_df <- read.csv("churn-bigml-80.csv", stringsAsFactors = TRUE) # loading dataset with training data 
+
+test_df <- read.csv("churn-bigml-20.csv", stringsAsFactors = TRUE) # loading dataset with testing data
+
+
+```
+
+
+
+```{r}
+
+str(training_df) # to view and understand variable types
+
+```
+
+```{r}
+
+sum(is.na(training_df$Churn)) # checking for any missing values 
+
+sum(training_df$Churn == "True") # to get number of customers who churned
+sum(training_df$Churn == "False") # to get number of customers who did not churn
+sum(training_df$Churn == "True")/nrow(training_df) # to get percentage of customers who churned 
+sum(training_df$Churn == "False")/nrow(training_df) # to get percentage of customers who did not churn 
+
+sum(training_df$International.plan == "No")
+sum(training_df$International.plan == "No")/nrow(training_df)
+sum(training_df$International.plan == "No" & training_df$Churn == "False")/nrow(training_df)
+
+sum(training_df$International.plan == "No" & training_df$Churn == "False")/sum(training_df$Churn == "False")
+
+sum(training_df$International.plan == "No" & training_df$Churn == "True")/sum(training_df$Churn == "True")
+
+sum(training_df$International.plan == "Yes" & training_df$Churn == "False")/sum(training_df$Churn == "False") 
+
+sum(training_df$International.plan == "Yes" & training_df$Churn == "True")/sum(training_df$Churn == "True")
+
+print("BLOCK") # to create visual space
+
+sum(training_df$Voice.mail.plan == "No" & training_df$Churn == "False")/sum(training_df$Churn == "False")
+
+sum(training_df$Voice.mail.plan == "Yes" & training_df$Churn == "False")/sum(training_df$Churn == "False")
+
+sum(training_df$Voice.mail.plan == "Yes" & training_df$Churn == "True")/sum(training_df$Churn == "True")
+
+sum(training_df$Voice.mail.plan == "No" & training_df$Churn == "True")/sum(training_df$Churn == "True")
+
+print("BLOCK") # to create visual space
+
+sum(training_df$Voice.mail.plan == "No" & training_df$International.plan == "No")/sum(training_df$International.plan == "No")
+
+
+
+```
+
+```{r}
+
+source("Rfunctions.R") # to load in R functions for charts 
+
+cc_barplot(Data = training_df, "International.plan", "Voice.mail.plan", freq = "condprob") # conditional probability of having a voice mail plan given international plan
+
+cc_barplot(Data = training_df, "International.plan", "Churn", freq = "condprob") # conditional probability of having a international plan given churn
+
+cc_barplot(Data = training_df, "Voice.mail.plan", "Churn", freq = "condprob") # conditional probability of having a voice mail plan given churn
+
+```
+
+
+```{r}
+
+# bar charts for categorical variables and state variable 
+barp(training_df, "State", freq = "relfreq")
+barp(training_df, "International.plan", freq = "relfreq")
+barp(training_df, "Voice.mail.plan", freq = "relfreq")
+barp(training_df, "Churn", freq = "relfreq")
+
+numerical_columns <- training_df[, c("Account.length", "Area.code", "Number.vmail.messages", "Total.day.minutes", "Total.day.calls", "Total.day.charge", "Total.eve.minutes", "Total.eve.calls", "Total.eve.charge", "Total.night.minutes", "Total.night.calls", "Total.night.charge", "Total.intl.minutes", "Total.intl.calls", "Total.intl.charge", "Customer.service.calls")]  # assigning numerical columns for simplicity
+
+for(i in 1:ncol(numerical_columns)) {
+    hist(numerical_columns[[i]], main = colnames(numerical_columns)[i], xlab = colnames(numerical_columns)[i]) # for loop to create a histogram for all the numerical variables, with the corresponding labels 
+}
+
+for(i in 1:ncol(numerical_columns)) {
+  cc_hist(training_df, colnames(numerical_columns)[i], "Churn")
+} # for loop to create a conditional probability histogram for all the numerical variables for the churn
+
+for(i in 1:ncol(numerical_columns)) {
+  boxplot(numerical_columns[[i]], main = colnames(numerical_columns)[i])
+} # for loop to create a boxplot for all the numerical variables, with the corresponding labels 
+
+for(i in 1:ncol(numerical_columns)) {
+  cc_boxplot(training_df, colnames(numerical_columns)[i], "Churn" )
+} # for loop to create a conditional probability boxplot for all the numerical variables for the churn 
+
+
+#for(i in 1:ncol(training_df)) {
+ # hist(training_df$ncol[i])
+#}
+
+
+```
+```{r}
+
+# to plot/visualize the spreads of the variables with the other variables 
+plot(training_df[, 1:5], col = as.numeric(training_df$Churn))
+plot(training_df[, 6:10], col = as.numeric(training_df$Churn))
+plot(training_df[, 11:15], col = as.numeric(training_df$Churn))
+plot(training_df[, 16:19], col = as.numeric(training_df$Churn))
+
+
+```
+
+```{r}
+
+require(Information)
+
+y <- training_df$Churn == "True"
+class(y)
+y <- 1*y
+class(y)
+
+training_df["class"] <- y
+str(training_df)
+
+IV <- create_infotables(data = training_df[,-20], y = "class", bins = 5)
+IV
+
+plot_infotables(IV, "Total.day.minutes")  # in the 5th bin, highest positive WOE, meaning much more likely to churn. customers in lower ranges have increasingly lower/negative WOE meaning less likely to churn
+
+plot_infotables(IV, "Total.day.charge") # same pattern as Total.day.minutes which makes sense because charges are tied to usage. very high day-time charges indicate strong likelihood to churn
+
+plot_infotables(IV, "International.plan") # customers with an international plan are much more likely to churn
+
+plot_infotables(IV, "State") # geographic location/state has a clear impact on churn behavior
+
+plot_infotables(IV, "Customer.service.calls") 
+
+plot_infotables(IV, "Voice.mail.plan")
+
+plot_infotables(IV, "Total.intl.calls")
+
+plot_infotables(IV, "Total.eve.charge")
+
+plot_infotables(IV, "Total.eve.minutes")
+
+plot_infotables(IV, "Total.intl.minutes")
+
+plot_infotables(IV, "Total.intl.charge")
+
+plot_infotables(IV, "Number.vmail.messages")
+
+
+
+
+
+```
+
+
+
+```{r}
+
+
+
+library(mltools)
+library(data.table)
+library(factoextra)
+library(dplyr)
+
+training_df <- read.csv("churn-bigml-80.csv", stringsAsFactors = TRUE)  # to import training df 
+
+training_df_subset <- select(training_df, -Churn, -State)  # to get the features from the training df, removing State as well for convenience and tagrte variable Churn
+
+training_df <- one_hot(as.data.table(training_df_subset)) # to one-hot encode the International.plan and Voice.mail.plan variables, and ensure all are numeric (important for PCA)
+
+# https://datatricks.co.uk/one-hot-encoding-in-r-three-simple-methods
+
+pc <- prcomp(training_df, scale = TRUE) # running PCA on the dataset using prcomp and scaling the data (important for PCA)
+pc
+
+# https://stackoverflow.com/questions/73093813/pca-x-must-be-numeric-in-r
+
+pc$sdev^2/sum(pc$sdev^2) # to get proportion of variance for each component
+
+pve = cumsum(pc$sdev^2/sum(pc$sdev^2)) # to get the overal proportion of variance
+
+plot(pve, t="b", col="blue", xlab="Principal Component", xaxp=c(1,10,3), main = "Proportion of variance explained Full Dataset", ylab = "Proportion of variance")  # to plot the proportion of variance explained by the components
+
+biplot(pc, scale = 0, cex = 1, main = "Biplot for PC") # to plot the biplot (for visualization)
+
+pc_data <- data.frame(pc$x[, 1:6]) # to create a dataframe of the PCA components obtained (df of data with PCA applied on it, to be used later)
+
+pc_data$Churn <- training_df$Churn # to put back/ensure the new df has the target variable churn
+
+
+
+
+```
+
+
+
+```{r}
+
+library(mltools)
+library(data.table)
+library(factoextra)
+library(dplyr)
+
+training_df <- read.csv("churn-bigml-80.csv", stringsAsFactors = TRUE)  # to import training df 
+
+training_df_subset <- select(training_df, -State, -Total.day.charge, -Total.day.calls, -Total.night.charge,  -Total.night.minutes, -Total.night.calls, -Account.length, -Total.eve.calls, -Area.code, -Churn)  # to get the subset of features from the training df, removing State as well for convenience, and target variable Churn
+
+training_df_subset <- one_hot(as.data.table(training_df_subset)) # to one-hot encode the International.plan and Voice.mail.plan variables, and ensure all are numeric (important for PCA)
+
+# https://datatricks.co.uk/one-hot-encoding-in-r-three-simple-methods
+
+pc <- prcomp(training_df_subset, scale = TRUE) # running PCA on the subset dataset using prcomp and scaling the data (important for PCA)
+pc
+
+# https://stackoverflow.com/questions/73093813/pca-x-must-be-numeric-in-r
+
+pc$sdev^2/sum(pc$sdev^2) # to get proportion of variance for each component
+
+pve = cumsum(pc$sdev^2/sum(pc$sdev^2)) # to get the overal proportion of variance
+
+plot(pve, t="b", col="blue", xlab="Principal Component", xaxp=c(1,10,3), main = "Proportion of variance explained for Subset Data", ylab = "Proportion of variance")  # to plot the proportion of variance explained by the components
+
+biplot(pc, scale = 0, cex = 1, main = "Biplot for PC") # to plot the biplot (for visualization)
+
+pc_data <- data.frame(pc$x[, 1:7]) # to create a dataframe of the PCA components obtained (df of data with PCA applied on it, to be used later)
+
+pc_data$Churn <- training_df$Churn # to put back/ensure the new df has the target variable churn
+
+```
+
+
+
+```{r, echo = FALSE}
+
+
+training_df <- read.csv("churn-bigml-80.csv", stringsAsFactors = TRUE) # loading dataset with training data 
+
+library(plotrix)
+library(cluster)
+
+DissimMatrix <- daisy(training_df_subset, metric = "gower") # using daisy so that Gower's distance can be used (categorical and numerical variables)
+
+training_data_MDS <- cmdscale(DissimMatrix, k = 3) # to produce 3 dimensions for MDS (3 needed because previous stress value was > 0.2)
+
+training_df_MDS <- as.data.frame(training_data_MDS) # to ensure data is a data frame (outputs a vector error without this)
+
+colnames(training_df_MDS) <- c("D1", "D2", "D3") # to give the dimensions names
+
+plot(training_df_MDS$D1, training_df_MDS$D2, xlab = "Dim 1", ylab = "Dim 2", main = "MDS (Using Gower's Distance)", pch = 21, col = ifelse(training_df_subset$Churn == "True", "red", "blue")); legend(x = 0.05, y = 0.07, legend = c("Churned", "Retained"), col = c("red", "blue"), pch = 21)   # to plot the dimensions with the given names and legend for clarity and pch = 21 for filled circle
+
+nDimensions <- ncol(training_df)  # number of dimensions (from original dataset)
+
+training_df_Stress <- vector("numeric", nDimensions) # to prepare the vector with the future stress values 
+
+for (i in 1:nDimensions) { # iterate through all columns in dataset
+  training_df_MDSTest <- cmdscale(DissimMatrix, k = i) # to do MDS
+  training_df_MDSTestDist <- daisy(training_df_MDSTest, metric = "gower") # to produce the dissimilarities matrix for the new dimensions 
+  training_df_Stress[i] <- sqrt(sum((DissimMatrix - training_df_MDSTestDist )^2) / sum(DissimMatrix^2))  # to calculate stress metrics 
+}
+
+plot(1:nDimensions, training_df_Stress, type = "b", pch = 19, xlab = "Number of Dimensions", ylab = "Stress", main = "Stress Plot for MDS Dimensions")  # plot of resulting stress vector 
+
+mds_training_df <- cbind(training_df_MDS, training_df) # to bind the two dfs together to analyze effect of MDS
+
+
+
+```
+
+
+
+```{r, echo = FALSE}
+
+
+training_df <- read.csv("churn-bigml-80.csv", stringsAsFactors = TRUE) # loading dataset with training data 
+
+training_df_subset <- select(training_df, -Total.day.charge, -Total.day.calls, -Total.night.charge,  -Total.night.minutes, -Total.night.calls, -Account.length, -Total.eve.calls, -Area.code)  # to get the subset df from the training data df
+
+library(plotrix)
+library(cluster)
+
+DissimMatrix <- daisy(training_df_subset, metric = "gower") # using daisy so that Gower's distance can be used (categorical and numerical variables)
+
+training_data_MDS <- cmdscale(DissimMatrix, k = 3) # to produce 3 dimensions for MDS (3 needed because previous stress value was > 0.2)
+
+training_df_MDS_subset <- as.data.frame(training_data_MDS) # to ensure data is a data frame (outputs a vector error without this)
+
+colnames(training_df_MDS) <- c("D1", "D2", "D3") # to give the dimensions names
+
+plot(training_df_MDS$D1, training_df_MDS$D2, xlab = "Dim 1", ylab = "Dim 2", main = "MDS (Using Gower's Distance)", pch = 21, col = ifelse(training_df_subset$Churn == "True", "red", "blue")); legend(x = 0.06, y = 0.03, legend = c("Churned", "Retained"), col = c("red", "blue"), pch = 21)   # to plot the dimensions with the given names and legend for clarity and pch = 21 for filled circle
+
+nDimensions <- ncol(training_df_subset)  # number of dimensions (from original dataset)
+
+training_df_Stress <- vector("numeric", nDimensions) # to prepare the vector with the future stress values 
+
+for (i in 1:nDimensions) { # iterate through all columns in dataset
+  training_df_MDSTest <- cmdscale(DissimMatrix, k = i) # to do MDS
+  training_df_MDSTestDist <- daisy(training_df_MDSTest, metric = "gower") # to produce the dissimilarities matrix for the new dimensions 
+  training_df_Stress[i] <- sqrt(sum((DissimMatrix - training_df_MDSTestDist )^2) / sum(DissimMatrix^2))  # to calculate stress metrics 
+}
+
+plot(1:nDimensions, training_df_Stress, type = "b", pch = 19, xlab = "Number of Dimensions", ylab = "Stress", main = "Stress Plot for MDS Dimensions")  # plot of resulting stress vector 
+
+mds_training_df_subset <- cbind(training_df_MDS_subset, training_df_subset) # to bind the two dfs together to analyze effect of MDS
+
+
+
+```
+
+
+
+
+
+```{r, warning=FALSE}
+
+training_df <- read.csv("churn-bigml-80.csv", stringsAsFactors = TRUE) # to get the df of the training data
+
+test_df <- read.csv("churn-bigml-20.csv", stringsAsFactors = TRUE) # to get the df of the test data
+
+training_df_subset <- select(training_df, -Total.day.charge, -Total.day.calls, -Total.night.charge,  -Total.night.minutes, -Total.night.calls, -Account.length, -Total.eve.calls, -Area.code) # to get the subset of variables from the training data 
+
+test_df_subset <- select(test_df, -Total.day.charge, -Total.day.calls, -Total.night.charge,  -Total.night.minutes, -Total.night.calls, -Account.length, -Total.eve.calls, -Area.code) # to get the subset of variables from the training data 
+
+log.model.all <- glm(Churn ~ ., data = training_df, family = binomial) # to create the logistic regression model which uses all of the features in original dataset
+
+summary(log.model.all)  # to view results of the model 
+
+
+log.model <- glm(Churn ~ ., data = training_df_subset, family = binomial) # to create the logistic regression model which uses the subset of the features from original dataset
+
+summary(log.model) 
+
+
+log.model.pca <- glm(Churn ~ ., data = pc_data, family = binomial) # to create the logistic regression model which uses the PCA applied dataset with the PCA components
+
+summary(log.model.pca) 
+
+
+log.model.mds <- glm(Churn ~ D1 + D2 + D3, data = mds_training_df, family = binomial) # to create the logistic regression model which uses the dimensions from the data with MDS applied 
+
+summary(log.model.mds)
+
+
+```
+
+
+
+```{r}
+
+require(pROC)
+
+probs <- predict(log.model, newdata = test_df_subset, type = "response") # to use the model which uses the subset df to predict on the test df and obtain probabilities of predictions
+
+class.pred <- 1*(probs > 0.5) # set the threshold to this (default value)
+
+table(test_df_subset$Churn, class.pred) # compute the table of predictions
+
+(T[1,1]+ T[2,2])/sum(T) # computes the accuracy
+
+T[2,2]/(T[2,1]+T[2,2]) # computes the sensitivity 
+
+T[1,1]/sum(T[1,]) # computes the specificity
+
+roc1 <- roc(test_df_subset$Churn, pred, plot=TRUE, grid=TRUE, col="red") # to get the ROC curve of the model on the churn predictions for the test df 
+
+coords(roc1, x=0.8, input="sensitivity", ret = r) # to get the point and metrics for where the sensitivity is 0.8
+
+coords(roc1, x=0.9, input="sensitivity", ret = r) # to get the point and metrics for where the sensitivity is 0.9
+ 
+opt <- coords(roc1, x="best",method="closest.topleft", ret=r) # to get the point for the optimal sensitivity/specificity trade-off possible by the classifier 
+ 
+plot(roc1, col="red", grid=TRUE)  # to re-plot the ROC curve
+lines(opt["specificity"], opt["sensitivity"], type="p")  
+points(1 - opt["specificity"], opt["sensitivity"], pch = 19, col = "black", cex = 1.5)  # to add the point in ROC curve that represents the optimal trade-off 
+text(1 - opt["specificity"], opt["sensitivity"], labels = round(opt["threshold"], 3), pos = 3) # to add the threshold value
+ 
+ 
+```
+
+
+```{r}
+
+log.model.vis <- glm(Churn ~ Total.day.minutes + Total.intl.calls, data = training_df_subset, family = binomial) # creating log model using subset df for the only purpose of creating the plot of the decision boundary for visualization purposes 
+
+plot(training_df_subset$Total.day.minutes, training_df_subset$Total.intl.calls, col= as.factor(training_df_subset$Churn), xlab = "Total.day.minutes", ylab = "Total.intl.calls") # to plot the two churn relevant variables for visualization, to add and see decision boundaries 
+ 
+hb <- coef(log.model.vis) # to get estimated coeffs
+
+abline(a=-hb[1]/hb[3],b=-hb[2]/hb[3],col="blue") # to get decision boundary for threshold = 0.5
+ 
+abline(a=(-hb[1]-log(9))/hb[3],b=-hb[2]/hb[3],col="green")  # to get decision boundary for threshold = 0.1
+
+```
+
+
+
+
+```{r}
+
+library(dplyr)
+library(mltools)     
+library(data.table)
+require(class)
+
+training_df <- read.csv("churn-bigml-80.csv", stringsAsFactors = TRUE) # to get training data 
+
+labels <- as.integer(training_df$Churn == "True")  # to convert churn to binary labels
+
+training_df_subset <- select(training_df, -Total.day.charge, -Total.day.calls, -Total.night.charge, -Total.night.minutes, -Total.night.calls, -Account.length, -Total.eve.calls, -Area.code) # to get the subset of features
+
+training_df_subset <- one_hot(as.data.table(training_df_subset)) # to one-hot encode categorical features
+Xtrain <- scale(training_df_subset) # to scale the data (important for KNN)
+
+f1 <- "Total.day.minutes"  # to select the 2 features to visualize because this method only works for 2-D/2 features (both features relevant to churn)
+f2 <- "Total.intl.calls"
+
+i <- which(colnames(Xtrain) == feature1) # to get the column indices of the 2 features i chose
+j <- which(colnames(Xtrain) == feature2)
+
+Xtrain_small <- Xtrain[, c(i, j)] # to get a small df of the feature columns i chose
+
+x1 <- seq(min(Xtrain_small[, 1]), max(Xtrain_small[, 1]), length.out = 100)  # to get the 100 equally spaced points in [0, 1]
+x2 <- seq(min(Xtrain_small[, 2]), max(Xtrain_small[, 2]), length.out = 100)
+Xtest <- expand.grid(x1, x2) # to create a grid of all the combinations (x1, x2)
+
+knn.pred <- knn(Xtrain_small, Xtest, labels, k = 1) # get predictions for points in Xtest
+cpred <- as.numeric(knn.pred) - 1
+
+cols <- c("red", "blue") # to define the colors
+
+plot(Xtest[, 1], Xtest[, 2],
+     col = cols[cpred + 1],
+     cex = 0.1,
+     main = paste("Decision Boundary for 1-NN Total.day.minutes vs Total.intl.calls"),
+     xlab = feature1,
+     ylab = feature2)
+
+points(Xtrain_small[, 1], Xtrain_small[, 2], cex = 0.8, pch = 16, col = cols[labels + 1]) # to plot 
+
+ cols = c("red", "blue")
+
+ kvals = c(1,3,5,10,15,20,25,30,35,40,45,50)
+ 
+ for (K in kvals) { # to generate predictions for different k-values
+   
+ knn.pred = knn(Xtrain_small, Xtest, labels, k=K, prob=TRUE)
+ 
+ cpred = as.numeric(knn.pred) - 1
+ 
+ plot(Xtest[,1], Xtest[,2],  # to plot test set points; color based on predicted class
+      
+ col = cols[cpred+1],
+ 
+ cex = 0.1,
+ 
+ xlab = "", ylab= "", main=paste("K =",K))
+
+ points(Xtrain[,1], Xtrain[,2], cex=0.8, pch = 16, col = ifelse(labels==1,"blue","red"))
+ }  # to plot training set
+ 
+ K = 10
+ knn.pred = knn(Xtrain_small, Xtest, labels, k=K, prob=TRUE)  # to get probability of predicted class
+ knn.prob = attr(knn.pred, "prob") # to compute probability of class 1 for pts predicted to be in class 2
+ knn.prob[knn.pred==0] = 1-knn.prob[knn.pred==0] # to plot function that creates heat maps
+ filled.contour(x1, x2, matrix(knn.prob, nrow = length(x1)),
+ levels = seq(0,1,length.out = K+1), nlevels = K+1,
+ main= paste("Estimated probability of class 1 for k =",K),
+ key.title = title(main="P(1|x)"))
+
+
+```
+
+
+
+```{r}
+
+library(bestglm)
+library(dplyr)
+library(glmnet)
+library(pROC)
+
+training_df <- read.csv("churn-bigml-80.csv", stringsAsFactors = TRUE) # to get training data
+test_df <- read.csv("churn-bigml-20.csv", stringsAsFactors = TRUE) # to get the test data 
+
+training_df_subset <- select(training_df, -Total.day.charge, -Total.day.calls, -Total.night.charge, -Total.night.minutes, -Total.night.calls, -Account.length, -Total.eve.calls, -Area.code) # to select subset of variables from training data df
+
+test_df_subset <- select(test_df, -Total.day.charge, -Total.day.calls, -Total.night.charge, -Total.night.minutes, -Total.night.calls, -Account.length, -Total.eve.calls, -Area.code) # to get same subset for the test df 
+
+test_df_subset$Churn <- as.integer(test_df_subset$Churn == "True") # to ensure the churn value is an integer/encoded
+
+training_df_subset$y <- as.integer(training_df_subset$Churn == "True") # to make sure that Churn variable is binary/integer and placed as last column in df named "y"
+training_df_subset$Churn <- NULL # to remove/ignore churn variable, now placed in df as "y"
+
+m_AIC <- bestglm(training_df_subset, family = binomial, IC = "AIC") # to run best subset selection using AIC
+summary(m_AIC$BestModel) # to get the best model usin AIC
+
+m_BIC <- bestglm(training_df_subset, family = binomial, IC = "BIC") # to run best subset selection using BIC
+summary(m_BIC$BestModel) # to get the best model usin BIC
+
+null <- glm(y ~ 1, data = training_df_subset, family = binomial) # to run AIC-based forward sel
+full <- glm(y ~ ., data = training_df_subset, family = binomial)
+step_AIC <- step(null, scope = formula(full), direction = "forward")
+summary(step_AIC)
+
+step_BIC <- step(full, scope = formula(null), direction = "backward", k = log(nrow(training_df_subset))) # to run BIC-based backward sel
+summary(step_BIC)
+
+x <- as.matrix(training_df_subset[ , sapply(training_df_subset, is.numeric) & names(training_df_subset) != "y"]) # to prepare data
+y <- as.factor(training_df_subset$y)
+
+set.seed(42) # to run LASSO with CV using AUC as metric
+cv.lasso <- cv.glmnet(x, y, family = "binomial", alpha = 1.0, type.measure = "auc")
+
+plot(cv.lasso)
+coef(cv.lasso,s="lambda.min")
+coef(cv.lasso,s="lambda.1se")
+
+pred_probs <- predict(step_AIC, newdata = test_df_subset, type = "response") # to predict probabilities on the test set
+
+pred_class <- ifelse(pred_probs > 0.5, 1, 0) # to convert to class preds using 0.5 threshold
+
+truth <- test_df_subset$Churn # conf matrix
+table(Predicted = pred_class, Actual = truth)
+
+mean(pred_class == truth) # to get the accuracy
+
+roc_curve <- roc(truth, pred_probs, plot = TRUE, col = "blue", print.auc = TRUE)
+auc(roc_curve) # to get roc curve with AUC 
+
+
+
+```
+
+
+
+```{r}
+
+library(class)
+
+training_df <- read.csv("churn-bigml-80.csv", stringsAsFactors = TRUE) # to get training df
+test_df <- read.csv("churn-bigml-20.csv", stringsAsFactors = TRUE) # to get test df
+
+library(dplyr)
+library(mltools)     
+library(data.table)
+library(caret)
+library(pROC)
+
+training_df_subset <- select(training_df, -Total.day.charge, -Total.day.calls, -Total.night.charge,  -Total.night.minutes, -Total.night.calls, -Account.length, -Total.eve.calls, -Area.code) # to get subset of features from training df
+
+test_df_subset <- select(test_df, -Total.day.charge, -Total.day.calls, -Total.night.charge,  -Total.night.minutes, -Total.night.calls, -Account.length, -Total.eve.calls, -Area.code) # to get subset of features from the test df
+
+training_df_subset$Churn <- as.integer(training_df_subset$Churn == "True") # to convert churn to binary (needed)
+test_df_subset$Churn <- as.integer(test_df_subset$Churn == "True")
+
+Xtrain_full <- one_hot(as.data.table(training_df_subset)) # to one hot encode data so categorical variables can be used (necessary for KNN, it uses numerical features)
+Xtest_full <- one_hot(as.data.table(test_df_subset))
+
+Xtrain_full <- scale(Xtrain_full)  # to scale the data (also important for KNN)
+Xtest_full <- scale(Xtest_full, center = attr(Xtrain_full, "scaled:center"), scale = attr(Xtrain_full, "scaled:scale"))
+
+labels <- training_df_subset$Churn # labels for churn for training data
+Cval <- test_df_subset$Churn # labels for churn for test data 
+
+kvals <- seq(1, 50)
+TrainError <- rep(0, length(kvals))
+TestError <- rep(0, length(kvals))
+
+for (K in kvals) {
+  
+  pred_train <- knn(Xtrain_full, Xtrain_full, labels, k = K) # to get the predicted labels for the training data 
+  TrainError[K] <- mean(pred_train != labels) # to get the misclassification error on the training set
+  
+  pred_test <- knn(Xtrain_full, Xtest_full, labels, k = K)   # to get the predicted labels for the test data 
+  TestError[K] <- mean(pred_test != Cval)  # to get the misclassification error on the test set
+}
+
+ymax <- max(c(TrainError, TestError)) # to plot misclassification errors
+plot(kvals, TrainError, type = "b", cex = 0.6, col = "blue",
+     xlab = "k", ylab = "Misclassification Error", ylim = c(0, ymax),
+     main = "Misclassification Error vs k (All Features)")
+lines(kvals, TestError, type = "b", cex = 0.6, col = "red")
+abline(v = which.min(TestError), lty = 2)
+legend("bottomright", legend = c("Train", "Test"),
+       col = c("blue", "red"), pch = 1, lty = 1)
+
+best_k <- kvals[which.min(TestError)] # to get the best K value
+
+knn_best <- knn(Xtrain_full, Xtest_full, labels, k = best_k)  # to get the optimal K
+
+conf_mat <- table(Predicted = knn_best, Actual = Cval) # to get results/confusion matrix
+print(conf_mat)
+
+knn_model <- knn3(Xtrain_full, factor(labels), k = best_k) # to get the model using the best K
+
+pred_probs <- predict(knn_model, Xtest_full)[, 2] # to get the probabilities
+
+roc_obj <- roc(Cval, pred_probs, plot = TRUE, col = "red", grid = TRUE) # to plot roc curve
+auc(roc_obj)
+
+
+
+```
+
+
+```{r}
+
+library(class)
+library(factoextra)
+library(dplyr)
+library(mltools)     
+library(data.table)
+library(caret)
+library(pROC)
+
+training_df <- read.csv("churn-bigml-80.csv", stringsAsFactors = TRUE) # to get data dfs 
+test_df <- read.csv("churn-bigml-20.csv", stringsAsFactors = TRUE)
+
+train_churn <- training_df$Churn  # to save Churn variables (for later so when modified they are saved)
+test_churn <- test_df$Churn
+
+training_df_subset <- select(training_df, -State, -Total.day.charge, -Total.day.calls, -Total.night.charge,  -Total.night.minutes, -Total.night.calls, -Account.length, -Total.eve.calls, -Area.code) # to get subset of dfs
+
+test_df_subset <- select(test_df, -State, -Total.day.charge, -Total.day.calls, -Total.night.charge,  -Total.night.minutes, -Total.night.calls, -Account.length, -Total.eve.calls, -Area.code)
+
+training_df_subset <- one_hot(as.data.table(training_df_subset)) # to one hot encode: for categorical variables
+
+test_df_subset <- one_hot(as.data.table(test_df_subset))
+
+pc_train <- prcomp(training_df_subset, scale = TRUE) # to apply pca to the subset df
+
+pc_test <- predict(pc_train, newdata = test_df_subset) # to project the test data using the pc_train, otherwise 0 values for churn here 
+
+# https://stackoverflow.com/questions/73093813/pca-x-must-be-numeric-in-r
+
+pc_train_data <- data.frame(pc_train$x[, 1:7]) # to create corresponding pca dfs for training and test
+
+pc_test_data <- data.frame(pc_test[, 1:7])
+
+pc_train_data$Churn <- training_df_subset$Churn # to save again churn values from new dfs
+pc_test_data$Churn <- test_df_subset$Churn
+
+pc_train_data$Churn <- churn_train # to assign them back
+pc_test_data$Churn  <- churn_test
+
+labels <- pc_train_data$Churn # to get/save labels
+Cval <- pc_test_data$Churn
+
+pc_train_data$Churn <- as.integer(pc_train_data$Churn == "True") # to convert Churn to binary/integer 
+pc_test_data$Churn <- as.integer(pc_test_data$Churn == "True")
+
+
+Xtrain_full <- one_hot(as.data.table(pc_train_data)) # to ensure again data is one-hot encoded 
+Xtrain_full <- select(Xtrain_full, -Churn)
+Xtest_full <- pc_test_data[, names(Xtrain_full)]
+
+
+kvals <- seq(1, 50) # the k values to test
+TrainError <- rep(0, length(kvals))
+TestError <- rep(0, length(kvals))
+
+for (K in kvals) { # t loop over k values
+  pred_train <- knn(Xtrain_full, Xtrain_full, labels, k = K)   # to get the train error
+  TrainError[K] <- mean(pred_train != labels)
+  pred_test <- knn(Xtrain_full, Xtest_full, labels, k = K)   # to get the test error
+  TestError[K] <- mean(pred_test != Cval)
+}
+
+ymax <- max(c(TrainError, TestError)) # to plot misclassification errors
+plot(kvals, TrainError, type = "b", cex = 0.6, col = "blue",
+     xlab = "k", ylab = "Misclassification Error", ylim = c(0, ymax),
+     main = "Misclassification Error vs k (All Features)")
+lines(kvals, TestError, type = "b", cex = 0.6, col = "red")
+abline(v = which.min(TestError), lty = 2)
+legend("bottomright", legend = c("Train", "Test"),
+       col = c("blue", "red"), pch = 1, lty = 1)
+
+best_k <- kvals[which.min(TestError)] # to get the best K value
+
+knn_best <- knn(Xtrain_full, Xtest_full, labels, k = best_k)  # to get the optimal K
+
+conf_mat <- table(Predicted = knn_best, Actual = Cval) # to get the conf matrix
+print(conf_mat)
+
+knn_model <- knn3(Xtrain_full, factor(labels), k = best_k) # to get the model using the best K
+
+pred_probs <- predict(knn_model, Xtest_full)[, 2] # to get the probabilities
+
+roc_obj <- roc(Cval, pred_probs, plot = TRUE, col = "red", grid = TRUE) # to plot roc curve
+auc(roc_obj)
+
+
+
+
+
+```
+
+```{r}
+
+```
+
+
+```{r pressure, echo=FALSE}
+
+library(dplyr)
+require(rpart)
+
+training_df <- read.csv("churn-bigml-80.csv", stringsAsFactors = TRUE) # import training data 
+test_df <- read.csv("churn-bigml-20.csv", stringsAsFactors = TRUE)  # import testing data 
+
+training_df_subset <- select(training_df, -Total.day.charge, -Total.day.calls, -Total.night.charge,  -Total.night.minutes, -Total.night.calls, -Account.length, -Total.eve.calls, -Area.code)  # get datafram for subset of features
+
+test_df_subset <- select(test_df, -Total.day.charge, -Total.day.calls, -Total.night.charge,  -Total.night.minutes, -Total.night.calls, -Account.length, -Total.eve.calls, -Area.code) # get dataframe for subset of features for test df
+
+ require(pROC)
+
+  full.tree <- rpart(Churn ~ ., data = training_df_subset, method="class", control= rpart.control(cp=0))  # model for tree using the subset dataset 
+  
+  rpart.plot(full.tree)  # to plot the above tree model
+  
+  printcp(full.tree) # to get cp for the tree
+  
+  plotcp(full.tree) # to plot the cps for the tree
+  
+  best <- full.tree$cptable[which.min(full.tree$cptable[,"xerror"]),"CP"]  # to get the best cp from the model
+
+  pruned_tree <- prune(full.tree, cp=best)   # to create a pruned tree based on the best cp value
+
+  rpart.plot(pruned_tree) # to plot the pruned tree
+  
+  pred_probs_pruned <- predict(pruned_tree, newdata = test_df_subset, type = "prob")[, "True"]  # to get the probabilities predictions on the test set using the pruned tree model 
+
+true_class <- as.integer(test_df_subset$Churn == "True") # to use the true labels from the test df
+
+roc_curve <- roc(true_class, pred_probs_pruned, plot = TRUE, grid = TRUE)
+auc(roc_curve) # to plot the ROC curve and get the AUC value
+  
+  full.tree$variable.importance  # to get the variable importance from the model 
+  pruned_tree$variable.importance  # to get the variable importance from the pruned tree model
+
+pred_class_full <- predict(full.tree, newdata = test_df_subset, type = "class") # to get the class predictions on the test set using the full model
+  
+pred_class_pruned <- predict(pruned_tree, newdata = test_df_subset, type = "class") # to get the class predictions on the test set using the pruned model
+
+actual_class <- test_df_subset$Churn # the actual labels of the test set
+
+conf_mat_full <- table(Predicted = pred_class_full, Actual = actual_class)
+print(conf_mat_full) # confusion matrix for full tree model 
+
+conf_mat_pruned <- table(Predicted = pred_class_pruned, Actual = actual_class)
+print(conf_mat_pruned) # confusion matrix for pruned tree model 
+
+
+  # https://www.statology.org/classification-and-regression-trees-in-r/
+  # https://stackoverflow.com/questions/56304698/how-do-i-plot-the-variable-importance-of-my-trained-rpart-decision-tree-model
+ 
+```
+
+
+```{r, echo = FALSE}
+
+training_df <- read.csv("churn-bigml-80.csv", stringsAsFactors = TRUE) # importing training dataset 
+test_df <- read.csv("churn-bigml-20.csv", stringsAsFactors = TRUE) # importing test dataset 
+
+library(class)
+library(factoextra)
+library(dplyr)
+require(rpart.plot)
+
+train_churn <- training_df$Churn # to store the Churn values in each df (produces an error and overwrites them otherwise)
+test_churn <- test_df$Churn
+
+training_df_subset <- select(training_df, -Total.day.charge, -Total.day.calls, -Total.night.charge,  -Total.night.minutes, -Total.night.calls, -Account.length, -Total.eve.calls, -Area.code)  # to get the subset training df
+
+training_df_subset <- training_df_subset[sapply(training_df_subset, is.numeric)]  # ensure all of df is numeric for no complications with PCA
+
+test_df_subset <- select(test_df, -Total.day.charge, -Total.day.calls, -Total.night.charge,  -Total.night.minutes, -Total.night.calls, -Account.length, -Total.eve.calls, -Area.code)  # to get the subset training df (to match the one of the training, so no problems with the dimension matching later for predicting)
+
+test_df_subset <- test_df_subset[sapply(test_df_subset, is.numeric)] # ensure all of df is numeric for no complications with PCA
+
+pc_train <- prcomp(training_df_subset, scale = TRUE) # applying PCA/prcomp function to the training subset df, and sclaing is true so data can be scaled (important for PCA)
+
+pc_test <- predict(pc_train, newdata = test_df_subset) # to project the test data using the pc_train, otherwise 0 values for churn here 
+
+# https://stackoverflow.com/questions/73093813/pca-x-must-be-numeric-in-r
+
+pc_train_data <- data.frame(pc_train$x[, 1:7]) # to set the dataframe for the training data as the 6 PCA components obtained from running PCA
+
+pc_test_data <- data.frame(pc_test[, 1:7]) # to set the dataframe for the test data as the 6 PCA components obtained from running PCA (to match the dimensions)
+
+pc_train_data$Churn <- training_df_subset$Churn # adding the churn variable for the model creation
+
+pc_test_data$Churn <- test_df_subset$Churn # adding the churn variable back
+
+pc_train_data$Churn <- churn_train
+pc_test_data$Churn  <- churn_test
+
+pc_train_data$Churn <- as.integer(pc_train_data$Churn == "True") # to convert churn to binary and numerical
+pc_test_data$Churn <- as.integer(pc_test_data$Churn == "True")
+
+full.tree <-rpart(Churn ~ ., data = pc_train_data, method="class", control= rpart.control(cp=0))  # model creation using the pca data 
+  
+  printcp(full.tree) # to get the cp
+  
+  plotcp(full.tree) # to plot the cp
+  
+  best <- full.tree$cptable[which.min(full.tree$cptable[,"xerror"]),"CP"] # to get the best cp from the model
+
+  pruned_tree <- prune(full.tree, cp=best) # to create a pruned tree based on the best cp value
+
+  rpart.plot(pruned_tree)  # to get the plot of the pruned tree 
+  
+  pred_probs <- predict(pruned_tree, newdata = pc_test_data, type = "prob")[, 2]   # to get the probability predictions on the test set for PCA using the pruned model
+  true_labels <- as.numeric(pc_test_data$Churn == 1) # to assign the correct labels
+  
+  roc_pca <- roc(true_labels, pred_probs, plot = TRUE, grid = TRUE)
+auc(roc_pca) # to get the roc curve for the model using PCA data
+  
+  full.tree$variable.importance  # to get the variable importances for each model
+  pruned_tree$variable.importance  
+  
+  pred_class_full <- predict(full.tree, newdata = pc_test_data, type = "class") # to get the class predictions on the test set using the full model
+  
+pred_class_pruned <- predict(pruned_tree, newdata = pc_test_data, type = "class") # to get the class predictions on the test set using the pruned model
+
+actual_class <- pc_test_data$Churn # the actual labels of the test set
+
+conf_mat_full <- table(Predicted = pred_class_full, Actual = actual_class)
+print(conf_mat_full) # confusion matrix for full tree model for PCA data
+
+conf_mat_pruned <- table(Predicted = pred_class_pruned, Actual = actual_class)
+print(conf_mat_pruned) # confusion matrix for pruned tree model for PCA data
+
+
+
+```
+
+
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
